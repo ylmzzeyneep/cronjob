@@ -1,2 +1,1 @@
-"# DevOpsUsecase" 
-"# zeynep-yilmaz" 
+# Zeynep Target Repository
