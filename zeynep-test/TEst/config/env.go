@@ -20,8 +20,8 @@ var (
 		TargetFilePath = os.Getenv("TARGET_FILE_PATH")
 		TargetUsername = os.Getenv("TARGET_USERNAME")
 
-		SourcePath     = "/tmp/git-source"
-		TargetPath     = "/tmp/git-target"
+		SourcePath = getEnv("SOURCE_PATH", "/tmp/git-source")
+		TargetPath = getEnv("TARGET_PATH", "/tmp/git-target")
 
 		PollInterval   = 60 * time.Second
 
@@ -77,7 +77,12 @@ func getSourceFileURLs(filePath string) []string {
 
 
 
-
+func getEnv(key string, defaultVal string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultVal
+}
 /*
 
 
@@ -88,6 +93,8 @@ export TARGET_FILE_PATH=targetfile
 export TARGET_USERNAME=ylmzzeyneep
 
 export TARGET_SSH_KEY_PATH=/home/ylmzzeyneep/.ssh/id_ed25519
+
+export TARGET_PATH=/mnt/c/Users/zeyne/deneme
 
 
 */

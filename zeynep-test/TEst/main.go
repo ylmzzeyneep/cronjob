@@ -4,8 +4,8 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
-	"strings"
 
 	"zeynep-test/config"
 	"zeynep-test/gitops"
@@ -14,68 +14,60 @@ import (
 func main() {
 	for {
 		log.Println("Preparing target directory...")
-		os.RemoveAll(config.TargetPath)
-		err := os.MkdirAll(config.TargetPath, 0755)
-		if err != nil {
-			log.Fatalf("Failed to create target path: %v", err)
+
+		if _, err := os.Stat(config.TargetPath); os.IsNotExist(err) {
+			log.Println("Creating target path...")
+			if err := os.MkdirAll(config.TargetPath, 0755); err != nil {
+				log.Fatalf("Failed to create target path: %v", err)
+			}
 		}
 
-		log.Println("Cloning target repository...")
-		cmd := exec.Command("git", "clone", config.TargetRepoURL, config.TargetPath)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			log.Fatalf("Git clone failed: %v", err)
+		if _, err := os.Stat(filepath.Join(config.TargetPath, ".git")); os.IsNotExist(err) {
+			log.Println("Cloning target repo...")
+			cmd := exec.Command("git", "clone", config.TargetRepoURL, config.TargetPath)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				log.Fatalf("Git clone failed: %v", err)
+			}
 		}
 
 		for _, url := range config.SourceFileURLs {
-			log.Printf("Downloading file from source URL: %s", url)
+			fileName := filepath.Base(url)
+			targetPath := filepath.Join(config.TargetPath, fileName)
 
-			_, fileName := getFileNameFromURL(url)
-
-			err := gitops.DownloadFile(url, config.SourcePath)
-			if err != nil {
-				log.Printf("Error downloading file from %s: %v", url, err)
-				continue 
+			log.Printf("Downloading: %s", fileName)
+			if err := gitops.DownloadFile(url, targetPath); err != nil {
+				log.Printf("Download failed for %s: %v", url, err)
+				continue
 			}
-			log.Println("File downloaded successfully.")
 
-			cmd = exec.Command("git", "add", fileName)
-			cmd.Dir = config.TargetPath 
+			cmd := exec.Command("git", "-C", config.TargetPath, "add", fileName)
 			if err := cmd.Run(); err != nil {
-				log.Printf("Error adding file %s to git: %v", fileName, err)
+				log.Printf("Git add failed for %s: %v", fileName, err)
 				continue
 			}
 
-			cmd = exec.Command("git", "status", "--porcelain")
-			cmd.Dir = config.TargetPath 
-			output, err := cmd.CombinedOutput()
+			cmd = exec.Command("git", "-C", config.TargetPath, "status", "--porcelain")
+			output, err := cmd.Output()
 			if err != nil {
-				log.Printf("Error running git status: %v", err)
+				log.Printf("Git status failed: %v", err)
 				continue
 			}
-
 			if len(output) == 0 {
-				log.Printf("No changes detected for %s, push not made.", fileName) 
+				log.Printf("No changes for %s", fileName)
 				continue
 			}
 
-			err = gitops.PushDownloadedFile(fileName) 
-			if err != nil {
-				log.Printf("Error pushing changes for file %s: %v", fileName, err)
-				continue 
+			if err := gitops.PushDownloadedFile(fileName); err != nil {
+				log.Printf("Push failed for %s: %v", fileName, err)
+				continue
 			}
 
-			log.Println("Changes pushed successfully.")
+			log.Println("Push successful.")
 		}
 
-		log.Println("Waiting for next iteration...")
+		log.Println("Sleeping for next cycle...")
 		time.Sleep(config.PollInterval)
 	}
-}
-
-func getFileNameFromURL(url string) (string, string) {
-	parts := strings.Split(url, "/")
-	fileName := parts[len(parts)-1]
-	return parts[len(parts)-2], fileName
 }
