@@ -1,3 +1,0 @@
-https://raw.githubusercontent.com/ylmzzeyneep/zeynep-source/refs/heads/main/Dockerfile
-https://raw.githubusercontent.com/ylmzzeyneep/zeynep-source/refs/heads/main/Jenkinsfile
-https://raw.githubusercontent.com/ylmzzeyneep/zeynep-source/refs/heads/main/main.txt
